@@ -7,25 +7,24 @@
 - [ ] docker-compose.yml 
 	- dockerfile with the compiled executable
 	
+# Options
+- option: --filter (e.g. "s2") 
+- option: --last #days (default 30)
+
 ## Commands
 
 - [ ] COMMAND streams
 	- output: date (sort) | streams | # listeners 
 	- timeline of streams and listeners
-	- options: --all/--last-week/--last-month(default)
 
 - [ ] COMMAND list
 	- output: episode # | date (sort) | title | # streams | # streams (1st week) 
 	- list all episodes in chronological order (can be filtered) 
-	- option: --filter (e.g. "s2") 
-	- option: --all/--last-week/--last-month(default)
 
 - [ ] COMMAND summary 
 	- output | streams             | all | spotify | webpage | other
 	- output | number_of_listeners | all | spotify | webpage | other
 	- summarized data for the show
-	- option: --filter (e.g. "s2") 
-	- option: --all/--last-week/--last-month(default)
 
 ## Notes
 - streams   |  episode+ip+user_agent with size>0

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
@@ -22,19 +23,15 @@ var (
 	spotifyOAuthURL   = "https://accounts.spotify.com/oauth2/v2/auth"
 	spotifyTokenURL   = "https://accounts.spotify.com/api/token"
 	spotifyGenericURL = "https://generic.wg.spotify.com/podcasters/v0"
-//"https://generic.wg.spotify.com/podcasters/v0/shows/0KkYBqKDT0iZVnUrpUcHS0/detailedStreams"
+	filter            string
+	lastDays          int
 )
 
 func loadConfig() {
-	// Set Viper to read from .env file (if present)
 	viper.SetConfigFile(".env")
-
-	// Read configuration from the .env file
 	if err := viper.ReadInConfig(); err != nil && !os.IsNotExist(err) {
 		log.Fatalf("Error reading .env file: %v", err)
 	}
-
-	// Set Viper to read environment variables
 	viper.AutomaticEnv()
 }
 
@@ -149,13 +146,45 @@ func getAccessToken(code, codeVerifier string) string {
 	return accessToken
 }
 
+func GetSpotifyAccessToken () string {
+		// Load configuration from environment variables and .env file
+	// loadConfig()
+
+	// Step 1: Generate Code Verifier and Code Challenge
+	codeVerifier := generateRandomString(64)
+	codeChallenge := generateCodeChallenge(codeVerifier)
+	code := getAuthorizationCode(codeChallenge, codeVerifier)
+	if code == "" {
+		log.Fatal("Failed to get authorization code")
+	}
+
+	// Step 2: Exchange the authorization code for an access token
+	accessToken := getAccessToken(code, codeVerifier)
+	if accessToken == "" {
+		log.Fatal("Failed to get access token")
+	}
+	return accessToken
+}
+
+func getDateRange() (startDate, endDate string) {
+	if lastDays >= 0 {
+		endDate = time.Now().Format("2006-01-02")
+		startDate = time.Now().AddDate(0, 0, -lastDays).Format("2006-01-02")
+	} else {
+		// Default to all data
+		startDate = "2020-01-01" // Assume this is the earliest data available
+		endDate = time.Now().Format("2006-01-02")
+	}
+	return
+}
+
 func getSpotifyStreams(accessToken, startDate, endDate string) {
 	showID := viper.GetString("SHOW_ID")
 	params := url.Values{}
 	params.Set("start", startDate)
 	params.Set("end", endDate)
 	spotifyURL := spotifyGenericURL + "/shows/" + showID + "/detailedStreams" + "?" + params.Encode()
-	// urlWithParams := fmt.Sprintf("%s?%s", spotifyGenericURL, params.Encode())
+
 	req, err := http.NewRequest("GET", spotifyURL, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -178,26 +207,54 @@ func getSpotifyStreams(accessToken, startDate, endDate string) {
 	fmt.Println(string(body))
 }
 
+var rootCmd = &cobra.Command{
+	Use:   "podcast-analytics",
+	Short: "Podcast Analyitcs CLI tool",
+}
+
+var streamsCmd = &cobra.Command{
+	Use:   "streams",
+	Short: "Get Podcast Streams",
+	Run: func(cmd *cobra.Command, args []string) {
+		accessToken := GetSpotifyAccessToken()
+		// startDate := "2024-08-21"
+		// endDate := "2024-08-21"
+		startDate, endDate := getDateRange() // Get the date range based on the global flag
+		getSpotifyStreams(accessToken, startDate, endDate)
+	},
+}
+
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List Podcast Episodes",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Listing episodes...")
+		// Implement listing logic here
+	},
+}
+
+var summaryCmd = &cobra.Command{
+	Use:   "summary",
+	Short: "Podcast Analytics Summary",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Analytics summary...")
+		// Implement summary logic here
+	},
+}
+
+func init() {
+	rootCmd.PersistentFlags().IntVar(&lastDays, "last", -1, "Number of last days to include (default: all data)")
+	rootCmd.PersistentFlags().StringVar(&filter, "filter", "", "Filter episode names, number or season")
+
+	rootCmd.AddCommand(streamsCmd)
+	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(summaryCmd)
+}
+
 func main() {
-	// Load configuration from environment variables and .env file
 	loadConfig()
-
-	// Step 1: Generate Code Verifier and Code Challenge
-	codeVerifier := generateRandomString(64)
-	codeChallenge := generateCodeChallenge(codeVerifier)
-	code := getAuthorizationCode(codeChallenge, codeVerifier)
-	if code == "" {
-		log.Fatal("Failed to get authorization code")
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
-
-	// Step 2: Exchange the authorization code for an access token
-	accessToken := getAccessToken(code, codeVerifier)
-	if accessToken == "" {
-		log.Fatal("Failed to get access token")
-	}
-
-	// Step 3: Use the access token to make the API request
-	startDate := "2024-08-21"
-	endDate := "2024-08-21"
-	getSpotifyStreams(accessToken, startDate, endDate)
 }
