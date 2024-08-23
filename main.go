@@ -17,6 +17,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/ruvido/goSpotifyPodcastAnalytics/lib"
 )
 
 var (
@@ -216,11 +217,13 @@ var streamsCmd = &cobra.Command{
 	Use:   "streams",
 	Short: "Get Podcast Streams",
 	Run: func(cmd *cobra.Command, args []string) {
-		accessToken := GetSpotifyAccessToken()
-		// startDate := "2024-08-21"
-		// endDate := "2024-08-21"
+		// accessToken := GetSpotifyAccessToken()
 		startDate, endDate := getDateRange() // Get the date range based on the global flag
-		getSpotifyStreams(accessToken, startDate, endDate)
+		// getSpotifyStreams(accessToken, startDate, endDate)
+		filePath := viper.GetString("LOG_PATH")
+	
+		data := lib.LoadLogData(filePath)
+		lib.FilterLogData(data, startDate, endDate, filter)
 	},
 }
 
