@@ -21,7 +21,8 @@ import (
 var (
 	spotifyOAuthURL   = "https://accounts.spotify.com/oauth2/v2/auth"
 	spotifyTokenURL   = "https://accounts.spotify.com/api/token"
-	detailedStreamsURL = "https://generic.wg.spotify.com/podcasters/v0/shows/0KkYBqKDT0iZVnUrpUcHS0/detailedStreams"
+	spotifyGenericURL = "https://generic.wg.spotify.com/podcasters/v0"
+//"https://generic.wg.spotify.com/podcasters/v0/shows/0KkYBqKDT0iZVnUrpUcHS0/detailedStreams"
 )
 
 func loadConfig() {
@@ -148,13 +149,14 @@ func getAccessToken(code, codeVerifier string) string {
 	return accessToken
 }
 
-func getDetailedStreams(accessToken, startDate, endDate string) {
+func getSpotifyStreams(accessToken, startDate, endDate string) {
+	showID := viper.GetString("SHOW_ID")
 	params := url.Values{}
 	params.Set("start", startDate)
 	params.Set("end", endDate)
-	urlWithParams := fmt.Sprintf("%s?%s", detailedStreamsURL, params.Encode())
-
-	req, err := http.NewRequest("GET", urlWithParams, nil)
+	spotifyURL := spotifyGenericURL + "/shows/" + showID + "/detailedStreams" + "?" + params.Encode()
+	// urlWithParams := fmt.Sprintf("%s?%s", spotifyGenericURL, params.Encode())
+	req, err := http.NewRequest("GET", spotifyURL, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -197,5 +199,5 @@ func main() {
 	// Step 3: Use the access token to make the API request
 	startDate := "2024-08-21"
 	endDate := "2024-08-21"
-	getDetailedStreams(accessToken, startDate, endDate)
+	getSpotifyStreams(accessToken, startDate, endDate)
 }
