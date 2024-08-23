@@ -6,10 +6,12 @@
 
 - [ ] docker-compose.yml 
 	- dockerfile with the compiled executable
+
+- [ ] import caddy log data
 	
 # Options
-- option: --filter (e.g. "s2") 
-- option: --last #days (default 30)
+- [X] option: --last #days (default 30)
+- [ ] option: --filter (e.g. "s2") 
 
 ## Commands
 
