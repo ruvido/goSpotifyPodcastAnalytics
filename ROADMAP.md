@@ -7,17 +7,18 @@
 - [ ] docker-compose.yml 
 	- dockerfile with the compiled executable
 
-- [ ] import caddy log data
+- [X] import caddy log data
 	
 # Options
 - [X] option: --last #days (default 30)
-- [ ] option: --filter (e.g. "s2") 
+- [X] option: --filter (e.g. "s2") 
 
 ## Commands
 
-- [ ] COMMAND streams
-	- output: date (sort) | streams | # listeners 
-	- timeline of streams and listeners
+- [-] COMMAND streams
+	x output: date (sort) | streams | # listeners 
+	x timeline of streams and listeners
+	- integrate server logs with spotify
 
 - [ ] COMMAND list
 	- output: episode # | date (sort) | title | # streams | # streams (1st week) 
