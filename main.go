@@ -26,6 +26,7 @@ var (
 	spotifyGenericURL = "https://generic.wg.spotify.com/podcasters/v0"
 	filter            string
 	lastDays          int
+	outputJson		  string
 )
 
 func loadConfig() {
@@ -217,13 +218,19 @@ var streamsCmd = &cobra.Command{
 	Use:   "streams",
 	Short: "Get Podcast Streams",
 	Run: func(cmd *cobra.Command, args []string) {
-		// accessToken := GetSpotifyAccessToken()
+		accessToken := GetSpotifyAccessToken()
 		startDate, endDate := getDateRange() // Get the date range based on the global flag
-		// getSpotifyStreams(accessToken, startDate, endDate)
+		getSpotifyStreams(accessToken, startDate, endDate)
 		filePath := viper.GetString("LOG_PATH")
 	
 		data := lib.LoadLogData(filePath)
-		lib.FilterLogData(data, startDate, endDate, filter)
+		// lib.FilterLogData(data, startDate, endDate, filter)
+		filteredData := lib.FilterLogData(data, startDate, endDate, filter)
+		result := lib.CountStreamsAndListeners(filteredData)
+		err := lib.OutputResult(result, outputJson)
+		if err != nil {
+			fmt.Printf("Error saving result: %v\n", err)
+		}
 	},
 }
 
@@ -248,6 +255,7 @@ var summaryCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().IntVar(&lastDays, "last", -1, "Number of last days to include (default: all data)")
 	rootCmd.PersistentFlags().StringVar(&filter, "filter", "", "Filter episode names, number or season")
+	rootCmd.PersistentFlags().StringVar(&outputJson, "json", "", "Output json filepath")
 
 	rootCmd.AddCommand(streamsCmd)
 	rootCmd.AddCommand(listCmd)

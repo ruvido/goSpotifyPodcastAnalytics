@@ -31,6 +31,39 @@ type LogData struct {
 	Size      int64  // The size of the log entry
 }
 
+
+type StreamListenerCount struct {
+	Streams   int `json:"streams"`
+	Listeners int `json:"listeners"`
+}
+
+type TimeSeries struct {
+	Date      string                `json:"date"`
+	All       StreamListenerCount   `json:"all"`
+	Web       StreamListenerCount   `json:"web"`
+	Spotify   StreamListenerCount   `json:"spotify"`
+	Other     StreamListenerCount   `json:"other"`
+}
+
+type Result struct {
+	TimeSeries []TimeSeries `json:"timeSeries"`
+}
+
+
+
+
+func containsAny(uri, filter string) bool {
+	keywords := strings.Fields(filter)
+
+	for _, keyword := range keywords {
+		if !strings.Contains(uri, keyword) {
+			return false
+		}
+	}
+	return true
+}
+
+
 func ingestDataFromFile(filePath string) ([]LogEntry, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -119,48 +152,145 @@ func LoadLogData(filePath string) []LogData {
 	return logDataList
 }
 
-func FilterLogData ( data []LogData, startDate, endDate, filter string) {
+func FilterLogData(data []LogData, startDate, endDate, filter string) []LogData {
 	// Parse the start and end dates
-	startDate = startDate+" 00:00:00"
-	endDate = endDate + " 23:59:00"
+	startDate = startDate + " 00:00:00"
+	endDate = endDate + " 23:59:59"
 	layout := "2006-01-02 15:04:05"
 	start, err := time.Parse(layout, startDate)
 	if err != nil {
 		fmt.Printf("Failed to parse start date: %v\n", err)
-		// return nil
+		return nil
 	}
 	end, err := time.Parse(layout, endDate)
 	if err != nil {
 		fmt.Printf("Failed to parse end date: %v\n", err)
-		// return nil
+		return nil
 	}
 
 	var filteredData []LogData
-
 	for _, entry := range data {
-		// Parse the entry's timestamp
 		entryTime, err := time.Parse(layout, entry.Timestamp)
 		if err != nil {
 			fmt.Printf("Failed to parse entry timestamp: %v\n", err)
 			continue
 		}
 
-		// Check if entry falls within the date range
 		if (entryTime.Equal(start) || entryTime.After(start)) && entryTime.Before(end) && containsAny(entry.URI, filter) {
 			filteredData = append(filteredData, entry)
-			fmt.Println(entry.Timestamp,entry.URI, entry.Size)
 		}
 	}
-	
+
+	return filteredData
 }
 
-func containsAny(uri, filter string) bool {
-	keywords := strings.Fields(filter)
+func classifyUserAgent(userAgent string) string {
+	ua := strings.ToLower(userAgent)
 
-	for _, keyword := range keywords {
-		if !strings.Contains(uri, keyword) {
-			return false
+	if strings.Contains(ua, "spotify") {
+		return "spotify"
+	} else if strings.Contains(ua, "chrome") || strings.Contains(ua, "firefox") ||
+		strings.Contains(ua, "safari") || strings.Contains(ua, "edge") ||
+		strings.Contains(ua, "msie") || strings.Contains(ua, "opera") ||
+		strings.Contains(ua, "mobile") {
+		return "web"
+	} else {
+		return "other"
+	}
+}
+
+func CountStreamsAndListeners(data []LogData) Result {
+	streamsMap := make(map[string]map[string]struct{})
+	listenersMap := make(map[string]map[string]struct{})
+	dateCount := make(map[string]TimeSeries)
+
+	for _, entry := range data {
+		if entry.Size <= 0 {
+			continue
+		}
+
+		date := entry.Timestamp[:10] // Extract the date (YYYY-MM-DD)
+		category := classifyUserAgent(entry.UserAgent)
+
+		epKey := entry.URI + entry.RealIP + entry.UserAgent
+		listenerKey := entry.RealIP + entry.UserAgent
+
+		if _, ok := streamsMap[date]; !ok {
+			streamsMap[date] = make(map[string]struct{})
+			listenersMap[date] = make(map[string]struct{})
+		}
+
+		if _, seen := streamsMap[date][epKey]; !seen {
+			streamsMap[date][epKey] = struct{}{}
+			dateCount[date] = incrementCount(dateCount[date], category, true)
+			// if (category=="other") { fmt.Println(entry.UserAgent)}
+		}
+
+		if _, seen := listenersMap[date][listenerKey]; !seen {
+			listenersMap[date][listenerKey] = struct{}{}
+			dateCount[date] = incrementCount(dateCount[date], category, false)
 		}
 	}
-	return true
+
+	var result Result
+	for _, v := range dateCount {
+		result.TimeSeries = append(result.TimeSeries, v)
+	}
+
+	return result
 }
+
+func incrementCount(ts TimeSeries, category string, isStream bool) TimeSeries {
+	if isStream {
+		ts.All.Streams++
+		switch category {
+		case "web":
+			ts.Web.Streams++
+		case "spotify":
+			ts.Spotify.Streams++
+		case "other":
+			ts.Other.Streams++
+		}
+	} else {
+		ts.All.Listeners++
+		switch category {
+		case "web":
+			ts.Web.Listeners++
+		case "spotify":
+			ts.Spotify.Listeners++
+		case "other":
+			ts.Other.Listeners++
+		}
+	}
+	return ts
+}
+
+func OutputResult(result Result, outputFilePath string) error {
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "")
+
+	// Print to stdout
+	err := encoder.Encode(result)
+	if err != nil {
+		return fmt.Errorf("failed to encode JSON to stdout: %v", err)
+	}
+
+	if outputFilePath != "" {
+		// Save to the specified file
+		file, err := os.Create(outputFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to create file: %v", err)
+		}
+		defer file.Close()
+
+		encoder := json.NewEncoder(file)
+		encoder.SetIndent("", "")
+		err = encoder.Encode(result)
+		if err != nil {
+			return fmt.Errorf("failed to encode JSON to file: %v", err)
+		}
+	}
+
+	return nil
+}
+
