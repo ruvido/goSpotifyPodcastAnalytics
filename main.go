@@ -1,23 +1,24 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
+	// "crypto/sha256"
+	// "encoding/base64"
+	// "encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
+	// "math/rand"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
+	// "strings"
 	"time"
 
-	"github.com/PuerkitoBio/goquery"
+	// "github.com/PuerkitoBio/goquery"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/ruvido/goSpotifyPodcastAnalytics/lib"
+	// "github.com/ruvido/goSpotifyPodcastAnalytics/lib"
+	"github.com/ruvido/goSpotifyPodcastAnalytics/spotify"
 )
 
 var (
@@ -35,137 +36,6 @@ func loadConfig() {
 		log.Fatalf("Error reading .env file: %v", err)
 	}
 	viper.AutomaticEnv()
-}
-
-func generateRandomString(length int) string {
-	rand.Seed(time.Now().UnixNano())
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(b)
-}
-
-func generateCodeChallenge(codeVerifier string) string {
-	sha256Hasher := sha256.New()
-	sha256Hasher.Write([]byte(codeVerifier))
-	return base64.RawURLEncoding.EncodeToString(sha256Hasher.Sum(nil))
-}
-
-func getAuthorizationCode(codeChallenge, codeVerifier string) string {
-	clientID := viper.GetString("CLIENT_ID")
-	spDc := viper.GetString("SP_DC")
-	spKey := viper.GetString("SP_KEY")
-	redirectURI := "https://podcasters.spotify.com"
-
-	baseURL := spotifyOAuthURL
-	params := url.Values{}
-	params.Add("response_type", "code")
-	params.Add("client_id", clientID)
-	params.Add("scope", "streaming ugc-image-upload user-read-email user-read-private")
-	params.Add("redirect_uri", redirectURI)
-	params.Add("code_challenge", codeChallenge)
-	params.Add("code_challenge_method", "S256")
-	params.Add("state", codeVerifier)
-	params.Add("response_mode", "web_message")
-	params.Add("prompt", "none")
-
-	fullURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
-
-	req, err := http.NewRequest("GET", fullURL, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	req.Header.Add("Cookie", fmt.Sprintf("sp_dc=%s; sp_key=%s", spDc, spKey))
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var jsContent string
-	doc.Find("script").Each(func(i int, s *goquery.Selection) {
-		jsContent = s.Text()
-	})
-
-	codeStart := strings.Index(jsContent, `"code": "`) + len(`"code": "`)
-	codeEnd := strings.Index(jsContent[codeStart:], `"`)
-	code := jsContent[codeStart : codeStart+codeEnd]
-
-	return code
-}
-
-func getAccessToken(code, codeVerifier string) string {
-	clientID := viper.GetString("CLIENT_ID")
-	redirectURI := "https://podcasters.spotify.com"
-
-	tokenURL := spotifyTokenURL
-	data := url.Values{}
-	data.Set("grant_type", "authorization_code")
-	data.Set("client_id", clientID)
-	data.Set("code", code)
-	data.Set("redirect_uri", redirectURI)
-	data.Set("code_verifier", codeVerifier)
-
-	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(data.Encode()))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var tokenResponse map[string]interface{}
-	if err := json.Unmarshal(body, &tokenResponse); err != nil {
-		log.Fatal(err)
-	}
-
-	accessToken, ok := tokenResponse["access_token"].(string)
-	if !ok {
-		log.Fatal("Failed to get access token from response")
-	}
-
-	return accessToken
-}
-
-func GetSpotifyAccessToken () string {
-		// Load configuration from environment variables and .env file
-	// loadConfig()
-
-	// Step 1: Generate Code Verifier and Code Challenge
-	codeVerifier := generateRandomString(64)
-	codeChallenge := generateCodeChallenge(codeVerifier)
-	code := getAuthorizationCode(codeChallenge, codeVerifier)
-	if code == "" {
-		log.Fatal("Failed to get authorization code")
-	}
-
-	// Step 2: Exchange the authorization code for an access token
-	accessToken := getAccessToken(code, codeVerifier)
-	if accessToken == "" {
-		log.Fatal("Failed to get access token")
-	}
-	return accessToken
 }
 
 func getDateRange() (startDate, endDate string) {
@@ -209,6 +79,86 @@ func getSpotifyStreams(accessToken, startDate, endDate string) {
 	fmt.Println(string(body))
 }
 
+func getSpotifyEpisodes(accessToken, startDate, endDate string) {
+	showID := viper.GetString("SHOW_ID")
+	params := url.Values{}
+	params.Set("start", startDate)
+	params.Set("end", endDate)
+	// params.Set("page", "1")
+	// params.Set("size", "100")
+	// params.Set("sortBy", "releaseDate")
+	// https://generic.wg.spotify.com/podcasters/v0/shows/0KkYBqKDT0iZVnUrpUcHS0/episodes?end=2024-08-27&filter=&page=1&size=50&sortBy=releaseDate&sortOrder=descending&start=2024-08-21
+	
+	// spotifyURL := spotifyGenericURL + "/shows/" + showID + "/episodes" + "?" + params.Encode()
+	spotifyURL := spotifyGenericURL + "/shows/" + showID + "/listeners" + "?" + params.Encode()
+	
+	
+//	spotifyURL
+
+	req, err := http.NewRequest("GET", spotifyURL, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(body))
+}
+
+// func SpotifyAnalytics(endpoint, startDate, endDate string) {
+// 	showID := viper.GetString("SHOW_ID")
+// 	params := url.Values{}
+// 	params.Set("start", startDate)
+// 	params.Set("end", endDate)
+// 
+// 	spotifyURL := spotifyGenericURL + "/shows/" + showID + "/" + endpoint + "?" + params.Encode()
+// 
+// 	body := spotifyGETRequest(spotifyURL)
+// 	
+// 	fmt.Println(body)
+// 	
+// 	jsonKey := ""
+// 	switch endpoint {
+// 		case "detailedStreams":
+// 			jsonKey = "detailedStreams"
+// 			var result map[string][]lib.SpotifyDetailedStreams
+// 	case "Listeners":
+// 			jsonKey = "counts"
+// 			var result map[string][]lib.SpotifyListeners
+// 		default:
+// 			log.Panic(endpoint,": this spotify endpoint is not yet supported :()")
+// 	}
+// 	
+// 	// Unmarshal the JSON into the map
+// 	err := json.Unmarshal([]byte(body), &result)
+// 	if err != nil {
+// 		log.Panic("Error unmarshaling JSON:", err)
+// 	}
+// 
+// 	// Unmarshal JSON into the result map
+// 	err := json.Unmarshal([]byte(body), &result)
+// 	if err != nil {
+// 		log.Panic("Error unmarshaling JSON:", err)
+// 	}
+// 	
+// 	// Access the array of TimeAnalytics
+// 	fmt.Println(result[jsonKey])
+// 	return result[jsonKey]
+// }
+
+
 var rootCmd = &cobra.Command{
 	Use:   "podcast-analytics",
 	Short: "Podcast Analyitcs CLI tool",
@@ -218,21 +168,25 @@ var streamsCmd = &cobra.Command{
 	Use:   "streams",
 	Short: "Get Podcast Streams",
 	Run: func(cmd *cobra.Command, args []string) {
-		accessToken := GetSpotifyAccessToken()
-		startDate, endDate := getDateRange() // Get the date range based on the global flag
-		getSpotifyStreams(accessToken, startDate, endDate)
-		filePath := viper.GetString("LOG_PATH")
-	
-		data := lib.LoadLogData(filePath)
-		// lib.FilterLogData(data, startDate, endDate, filter)
-		filteredData := lib.FilterLogData(data, startDate, endDate, filter)
-		result := lib.CountStreamsAndListeners(filteredData)
-		err := lib.OutputResult(result, outputJson)
-		if err != nil {
-			fmt.Printf("Error saving result: %v\n", err)
-		}
+// 		startDate, endDate := getDateRange()
+// 		filePath := viper.GetString("LOG_PATH")
+// 		data := lib.LoadLogData(filePath)
+// 		filteredData := lib.FilterLogData(data, startDate, endDate, filter)
+// 		result := lib.CountStreamsAndListeners(filteredData)
+// 		err := lib.OutputResult(result, outputJson)
+// 		if err != nil {
+// 			fmt.Printf("Error saving result: %v\n", err)
+// 		}
+// 
+// 		//=======================================
+// 		out := SpotifyAnalytics("detailedStreams", startDate, endDate)
+// 		fmt.Println("spotify",out)
+// 		fmt.Println("")
+// 		//=======================================
+
 	},
 }
+
 
 var listCmd = &cobra.Command{
 	Use:   "list",
@@ -260,6 +214,8 @@ func init() {
 	rootCmd.AddCommand(streamsCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(summaryCmd)
+	rootCmd.AddCommand(listenersCmd)
+
 }
 
 func main() {
@@ -269,3 +225,22 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+
+var listenersCmd = &cobra.Command{
+	Use:   "listeners",
+	Short: "Get Podcast Listeners",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("> LISTENERS")
+		// Implement listing logic here
+		startDate, endDate := getDateRange()
+		endpoint := "detailedStreams"
+		// endpoint := "listeners"
+		listenrs, _ := spotify.Analytics(startDate, endDate, endpoint)
+		// if err != nil {
+		// 	log.Panic("Error in ingesting Spotify data")
+		// }
+		fmt.Println(listenrs)
+	},
+}
+

@@ -49,7 +49,10 @@ type Result struct {
 	TimeSeries []TimeSeries `json:"timeSeries"`
 }
 
-
+type TimeAnalytics struct {
+	Date		string 		`json:"date"`
+	Count		int 		`json:"count"`	
+}
 
 
 func containsAny(uri, filter string) bool {
