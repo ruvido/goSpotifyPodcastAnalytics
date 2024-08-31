@@ -1,4 +1,4 @@
-package lib
+package caddy
 
 import (
 	"bufio"
@@ -32,18 +32,6 @@ type LogData struct {
 }
 
 
-type StreamListenerCount struct {
-	Streams   int `json:"streams"`
-	Listeners int `json:"listeners"`
-}
-
-type TimeSeries struct {
-	Date      string                `json:"date"`
-	All       StreamListenerCount   `json:"all"`
-	Web       StreamListenerCount   `json:"web"`
-	Spotify   StreamListenerCount   `json:"spotify"`
-	Other     StreamListenerCount   `json:"other"`
-}
 
 type Result struct {
 	TimeSeries []TimeSeries `json:"timeSeries"`

@@ -17,8 +17,9 @@ import (
 	// "github.com/PuerkitoBio/goquery"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	// "github.com/ruvido/goSpotifyPodcastAnalytics/lib"
+    "github.com/ruvido/goSpotifyPodcastAnalytics/data"
 	"github.com/ruvido/goSpotifyPodcastAnalytics/spotify"
+	//"github.com/ruvido/goSpotifyPodcastAnalytics/caddy"
 )
 
 var (
@@ -168,12 +169,13 @@ var streamsCmd = &cobra.Command{
 	Use:   "streams",
 	Short: "Get Podcast Streams",
 	Run: func(cmd *cobra.Command, args []string) {
+        fmt.Println("> STREAMS")
 // 		startDate, endDate := getDateRange()
 // 		filePath := viper.GetString("LOG_PATH")
-// 		data := lib.LoadLogData(filePath)
-// 		filteredData := lib.FilterLogData(data, startDate, endDate, filter)
-// 		result := lib.CountStreamsAndListeners(filteredData)
-// 		err := lib.OutputResult(result, outputJson)
+// 		data := caddy.LoadLogData(filePath)
+// 		filteredData := caddy.FilterLogData(data, startDate, endDate, filter)
+// 		result := caddy.CountStreamsAndListeners(filteredData)
+// 		err := caddy.OutputResult(result, outputJson)
 // 		if err != nil {
 // 			fmt.Printf("Error saving result: %v\n", err)
 // 		}
@@ -215,6 +217,7 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(summaryCmd)
 	rootCmd.AddCommand(listenersCmd)
+	rootCmd.AddCommand(testCmd)
 
 }
 
@@ -231,16 +234,47 @@ var listenersCmd = &cobra.Command{
 	Use:   "listeners",
 	Short: "Get Podcast Listeners",
 	Run: func(cmd *cobra.Command, args []string) {
+        //=======================================
 		fmt.Println("> LISTENERS")
-		// Implement listing logic here
 		startDate, endDate := getDateRange()
-		endpoint := "detailedStreams"
-		// endpoint := "listeners"
+		endpoint := "listeners"
 		listenrs, _ := spotify.Analytics(startDate, endDate, endpoint)
 		// if err != nil {
 		// 	log.Panic("Error in ingesting Spotify data")
 		// }
-		fmt.Println(listenrs)
-	},
+        if slice, ok := listenrs.([]spotify.ListenersData); ok {
+            for _, item := range slice {
+                fmt.Printf("Date: %s, Count: %d\n", item.Date, item.Count)
+            }
+        } else {
+            fmt.Println("Not a slice of ListenersData")
+        }
+        fmt.Println(listenrs)
+    },
 }
 
+var testCmd= &cobra.Command{
+    Use:   "test",
+    Short: "Analytics test",
+    Run: func(cmd *cobra.Command, args []string) {
+        //=======================================
+        fmt.Println("> TEST")
+        startDate, endDate := getDateRange()
+        endpoints := []string{"listeners", "detailedStreams"}
+
+        sptfy, err := spotify.TimeAnalytics(startDate, endDate, endpoints)
+        if err != nil {
+            fmt.Println("Error (spotify):", err)
+            return
+        }
+
+        // Initialize the original TimeAnalytics struct
+        var original data.TimeAnalytics
+        original.Name = sptfy
+
+        // Print the final result
+        fmt.Println(original)
+        fmt.Println(original.Name["spotify"])
+        //=======================================
+    },
+}
