@@ -5,20 +5,9 @@ import (
 	"fmt"
 	"net/url"
 	"github.com/spf13/viper"
+    // "strings"
 )
 
-// Data structure for listeners endpoint
-type ListenersData struct {
-	Date  string `json:"date"`
-	Count int    `json:"count"`
-}
-
-// Data structure for detailedStreams endpoint
-type DetailedStreamsData struct {
-	Date    string `json:"date"`
-	Starts  int    `json:"starts"`
-	Streams int    `json:"streams"`
-}
 
 // Process and unmarshal data for 'listeners' endpoint
 func processListenersData(body string) ([]ListenersData, error) {
@@ -63,4 +52,31 @@ func Analytics(startDate, endDate, endpoint string) (interface{}, error) {
 	default:
 		return nil, fmt.Errorf("unknown endpoint: %s", endpoint)
 	}
+}
+
+// func GetDataAPI (startDate, endDate, endpoint string) (map[string]interface{}, error) {
+func GetDataAPI (startDate, endDate, endpoint string) ([]byte, error) {
+	showID := viper.GetString("SHOW_ID")
+	params := url.Values{}
+	params.Set("start", startDate)
+	params.Set("end", endDate)
+
+	spotifyURL := spotifyGenericURL + "/shows/" + showID + "/" + endpoint + "?" + params.Encode()
+
+	// body := spotifyGETRequest(spotifyURL)
+	//
+	//    var data map[string]interface{}
+	//    decoder := json.NewDecoder(strings.NewReader(body))
+	//    if err := decoder.Decode(&data); err != nil {
+	//        return nil, fmt.Errorf("failed to unmarshal data: %w", err)
+	//    }
+	//    return data, nil
+
+	body := spotifyGETRequest(spotifyURL)
+    // body, err := spotifyGETRequest(spotifyURL)
+    // if err != nil {
+    //     return nil, fmt.Errorf("failed to get data from API: %w", err)
+    // }
+
+    return []byte(body), nil
 }

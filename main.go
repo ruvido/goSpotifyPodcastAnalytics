@@ -3,7 +3,7 @@ package main
 import (
 	// "crypto/sha256"
 	// "encoding/base64"
-	// "encoding/json"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -273,8 +273,14 @@ var testCmd= &cobra.Command{
         original.Name = sptfy
 
         // Print the final result
-        fmt.Println(original)
-        fmt.Println(original.Name["spotify"])
+        // fmt.Println(original)
+        // fmt.Println(original.Name["spotify"])
         //=======================================
+        jsonData, err := json.MarshalIndent(original, "", "  ")
+        if err != nil {
+            fmt.Errorf("failed to marshal dataMap to JSON: %w", err)
+        }
+        fmt.Println(string(jsonData))
+
     },
 }
