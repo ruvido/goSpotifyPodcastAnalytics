@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/viper"
     "github.com/ruvido/goSpotifyPodcastAnalytics/data"
 	"github.com/ruvido/goSpotifyPodcastAnalytics/spotify"
-	//"github.com/ruvido/goSpotifyPodcastAnalytics/caddy"
+	"github.com/ruvido/goSpotifyPodcastAnalytics/caddy"
 )
 
 var (
@@ -260,14 +260,24 @@ var testCmd= &cobra.Command{
         //=======================================
         fmt.Println("> TEST")
         startDate, endDate := getDateRange()
-        endpoints := []string{"listeners", "detailedStreams"}
 
+        // SPOTIFY
+        endpoints := []string{"listeners", "detailedStreams"}
         sptfy, err := spotify.TimeAnalytics(startDate, endDate, endpoints)
         if err != nil {
             fmt.Println("Error (spotify):", err)
             return
         }
 
+        // CADDY server data
+        source := "web"
+        cddy, err := caddy.TimeAnalytics(startDate, endDate, source)
+        if err != nil {
+            fmt.Println("Error (caddy):", err)
+            return
+        }
+
+        fmt.Println(cddy)
         // Initialize the original TimeAnalytics struct
         var original data.TimeAnalytics
         original.Name = sptfy

@@ -10,6 +10,7 @@ import (
 	"time"
 	"net/url"
 	"strings"
+    "github.com/ruvido/goSpotifyPodcastAnalytics/data"
 )
 
 type Request struct {
@@ -37,7 +38,20 @@ type Result struct {
 	TimeSeries []TimeSeries `json:"timeSeries"`
 }
 
-type TimeAnalytics struct {
+type TimeSeries struct {
+	Date    string `json:"date"`
+	All     Counts `json:"all"`
+	Web     Counts `json:"web"`
+	Spotify Counts `json:"spotify"`
+	Other   Counts `json:"other"`
+}
+
+type Counts struct {
+	Streams   int `json:"streams"`
+	Listeners int `json:"listeners"`
+}
+
+type TimeAnalyticsDELME struct {
 	Date		string 		`json:"date"`
 	Count		int 		`json:"count"`	
 }
@@ -285,3 +299,9 @@ func OutputResult(result Result, outputFilePath string) error {
 	return nil
 }
 
+func TimeAnalytics(startDate, endDate, source string ) (map[string][]data.DailyAnalytics, error) {
+    // Create a map to combine the data
+    dataMap := make(map[string][]data.DailyAnalytics)
+    dataMap[source] = []data.DailyAnalytics{}
+    return dataMap, nil
+}
